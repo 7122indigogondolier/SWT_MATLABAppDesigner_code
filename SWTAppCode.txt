@@ -1,0 +1,361 @@
+classdef SWT < matlab.apps.AppBase
+
+    % Properties that correspond to app components
+    properties (Access = public)
+        UIFigure                        matlab.ui.Figure
+        ChannelDropDownLabel            matlab.ui.control.Label
+        ChannelDropDown                 matlab.ui.control.DropDown
+        UIAxes                          matlab.ui.control.UIAxes
+        UIAxes2                         matlab.ui.control.UIAxes
+        LevelsDropDownLabel             matlab.ui.control.Label
+        LevelsDropDown                  matlab.ui.control.DropDown
+        LoadDataFileButton              matlab.ui.control.Button
+        PlotButton                      matlab.ui.control.Button
+        LampLabel                       matlab.ui.control.Label
+        Lamp                            matlab.ui.control.Lamp
+        PerformSWTButton                matlab.ui.control.Button
+        SignalLengthSamplesEditFieldLabel  matlab.ui.control.Label
+        SignalLengthSamplesEditField    matlab.ui.control.NumericEditField
+        DataFileLoadedLabel             matlab.ui.control.Label
+        CurrentSignalLengthButton       matlab.ui.control.Button
+        SignalStartTimesEditFieldLabel  matlab.ui.control.Label
+        SignalStartTimesEditField       matlab.ui.control.NumericEditField
+        Label                           matlab.ui.control.Label
+        Lamp_2                          matlab.ui.control.Lamp
+        PlotEntireLengthButton          matlab.ui.control.Button
+        TotalSignalLengthButton         matlab.ui.control.Button
+        ResolutionEditFieldLabel        matlab.ui.control.Label
+        ResolutionEditField             matlab.ui.control.NumericEditField
+        DefaultSignalLengthButton       matlab.ui.control.Button
+    end
+
+    % Author: Utkrist P. Thapa '21 
+    % Written for Engineering Summer Research 2019: Colon Crew v2
+    % Crew: Beth Reed, Jack Robey, Jeremy Wharton, Riwaj Shrestha, Utkrist P. Thapa
+    % Supervisor: Prof. Jon Erickson
+    % Coded for MATLAB App Designer 
+    
+    properties (Access = private)
+        ch = 1; % Channel number
+        strtLevel = 9; % start level and end level for swt
+        endLevel = 11; 
+        data; % the data file
+        signals; % the electrode data obtained from the data file
+        T; % Time-axis variable 
+        s; % variable to store signal from a specific channel
+        sLen = 32768; % signal length 32768 by default
+        prevsLen = 0; % records the previous signal length
+        startTime = 0; % signal start time
+        endTime; % signal end time 
+        swtMaxLevel = 15; % swt level 20 by default 
+        sRez = 100; % the sampling resolution of the input data
+    end
+
+
+    methods (Access = private)
+
+        % Value changed function: ChannelDropDown
+        function ChannelDropDownValueChanged(app, event)
+            value = app.ChannelDropDown.Value;
+            app.ch = str2num(value);  
+        end
+
+        % Button pushed function: CurrentSignalLengthButton
+        function CurrentSignalLengthButtonPushed(app, event)
+            if app.prevsLen == 0
+                app.SignalLengthSamplesEditField.Value = app.sLen; 
+            else 
+                app.SignalLengthSamplesEditField.Value = app.prevsLen;
+            end 
+        end
+
+        % Value changed function: LevelsDropDown
+        function LevelsDropDownValueChanged(app, event)
+            value = app.LevelsDropDown.Value;
+            if value == "9-11" 
+                app.endLevel = 11; 
+            elseif value == "9-12"  
+                app.endLevel = 12;
+                disp(app.endLevel);
+            else 
+                app.endLevel = 13; 
+            end 
+        end
+
+        % Button pushed function: LoadDataFileButton
+        function LoadDataFileButtonPushed(app, event)
+            app.sLen = 32768; %reset the value of the signal length to default when loading data
+            app.Lamp.Color = [0.00, 0.45, 0.74]; 
+            [file, path] = uigetfile('*.mat', 'Select a File');  
+            app.data = load(fullfile(path, file));
+            app.signals = app.data.ElecData; 
+            app.Lamp.Color = [0.47, 0.67, 0.19];
+            app.SignalLengthSamplesEditField.Value = app.sLen; 
+        end
+
+        % Button pushed function: PerformSWTButton
+        function PerformSWTButtonPushed(app, event)
+            disp(app.endLevel);
+            app.Lamp_2.Color = [0.94,0.94,0.94];
+            if mod(app.sLen, 2^app.endLevel) ~= 0 % check for invalid length 
+                f = uifigure; 
+                uialert(f, 'Please select a length divisible by 2^15', 'Invalid length');
+                app.sLen = 32768;
+            end 
+            app.endTime = app.startTime + app.sLen; 
+            app.s = app.signals(app.ch, app.startTime+1:app.endTime); 
+            [swa, swd] = swt(app.s, app.swtMaxLevel, 'bior3.9'); 
+            swa([1 : app.strtLevel-1], :) = 0; 
+            swd([1 : app.strtLevel-1], :) = 0;
+            swa([app.endLevel+1: app.swtMaxLevel], :) = 0; 
+            swd([app.endLevel+1: app.swtMaxLevel], :) = 0; 
+            cleanS = iswt(swa, swd, 'bior3.9'); 
+            cleanT = [app.startTime+1: app.endTime] / app.sRez; 
+            plot(app.UIAxes2, cleanT, cleanS)
+            ylim(app.UIAxes2, [-2000 2000]);
+            app.Lamp_2.Color = [0.47, 0.67, 0.19];
+            app.SignalLengthSamplesEditField.Value = app.sLen; 
+        end
+
+        % Button pushed function: PlotButton
+        function PlotButtonPushed(app, event)
+            app.endTime = app.startTime + app.sLen - 1; 
+            app.s = app.signals(app.ch, app.startTime+1:app.endTime); 
+            app.T = [app.startTime+1: app.endTime] / app.sRez;
+            cla(app.UIAxes); 
+            plot(app.UIAxes, app.T, app.s);
+            app.SignalLengthSamplesEditField.Value = app.sLen
+            app.prevsLen = 0; % current length is sLen so we dont need prevsLen
+        end
+
+        % Value changed function: SignalLengthSamplesEditField
+        function SignalLengthSamplesEditFieldValueChanged(app, event)
+            value = app.SignalLengthSamplesEditField.Value;
+            app.sLen = value; 
+        end
+
+        % Value changed function: SignalStartTimesEditField
+        function SignalStartTimesEditFieldValueChanged(app, event)
+            value = app.SignalStartTimesEditField.Value;
+            app.startTime = value * app.sRez;  
+        end
+
+        % Button pushed function: PlotEntireLengthButton
+        function PlotEntireLengthButtonPushed(app, event)
+            app.s = app.signals(app.ch, :); 
+            app.endTime = length(app.s);
+            app.s = app.signals(app.ch, 1:app.endTime); 
+            app.T = [1:app.endTime] / app.sRez; 
+            cla(app.UIAxes); 
+            plot(app.UIAxes, app.T, app.s); 
+            app.sLen = length(app.s);
+            app.SignalLengthSamplesEditField.Value = app.sLen;
+            app.prevsLen = 0; % current length is sLen so we dont need prevsLen
+        end
+
+        % Button pushed function: TotalSignalLengthButton
+        function TotalSignalLengthButtonPushed(app, event)
+            app.SignalLengthSamplesEditField.Value = length(app.signals);
+            app.prevsLen = app.sLen; % store prevsLen so we can get the current length of the signal by pressing 'Current Signal Length' button
+            app.sLen = length(app.signals); 
+        end
+
+        % Value changed function: ResolutionEditField
+        function ResolutionEditFieldValueChanged(app, event)
+            value = app.ResolutionEditField.Value;
+            app.sRez = value; 
+        end
+
+        % Button pushed function: DefaultSignalLengthButton
+        function DefaultSignalLengthButtonPushed(app, event)
+            app.prevsLen = app.sLen; % store the current plotted signal length 
+            app.sLen = 32768; % return value of sLen to default value 
+            app.SignalLengthSamplesEditField.Value = app.sLen; % update the view
+        end
+    end
+
+    % App initialization and construction
+    methods (Access = private)
+
+        % Create UIFigure and components
+        function createComponents(app)
+
+            % Create UIFigure
+            app.UIFigure = uifigure;
+            app.UIFigure.Position = [100 100 667 916];
+            app.UIFigure.Name = 'UI Figure';
+
+            % Create ChannelDropDownLabel
+            app.ChannelDropDownLabel = uilabel(app.UIFigure);
+            app.ChannelDropDownLabel.HorizontalAlignment = 'right';
+            app.ChannelDropDownLabel.Position = [533 831 52 15];
+            app.ChannelDropDownLabel.Text = 'Channel';
+
+            % Create ChannelDropDown
+            app.ChannelDropDown = uidropdown(app.UIFigure);
+            app.ChannelDropDown.Items = {'1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', '30', '31', '32', '33', '34', '35', '36', '37', '38', '39', '40', '41', '42', '43', '44', '45', '46', '47', '48', '49', '50', '51', '52', '53', '54', '55', '56', '57', '58', '59', '60', '61', '62', '63', '64', '65', '66', '67', '68', '69', '70', '71', '72', '73', '74', '75', '76', '77', '78', '79', '80', '81', '82', '83', '84', '85', '86', '87', '88', '89', '90', '91', '92', '93', '94', '95', '96', '97', '98', '99', '100', '101', '102', '103', '104', '105', '106', '107', '108', '109', '110', '111', '112', '113', '114', '115', '116', '117', '118', '119', '120', '121', '122', '123', '124', '125', '126', '127', '128'};
+            app.ChannelDropDown.ValueChangedFcn = createCallbackFcn(app, @ChannelDropDownValueChanged, true);
+            app.ChannelDropDown.Position = [600 827 39 22];
+            app.ChannelDropDown.Value = '1';
+
+            % Create UIAxes
+            app.UIAxes = uiaxes(app.UIFigure);
+            title(app.UIAxes, 'Original Signal ')
+            xlabel(app.UIAxes, 'Time(s)')
+            app.UIAxes.Box = 'on';
+            app.UIAxes.XGrid = 'on';
+            app.UIAxes.YGrid = 'on';
+            app.UIAxes.Position = [18 434 603 381];
+
+            % Create UIAxes2
+            app.UIAxes2 = uiaxes(app.UIFigure);
+            title(app.UIAxes2, 'SWT Isolated Levels Signal ')
+            xlabel(app.UIAxes2, 'Time(s)')
+            app.UIAxes2.Box = 'on';
+            app.UIAxes2.XGrid = 'on';
+            app.UIAxes2.YGrid = 'on';
+            app.UIAxes2.Position = [16 9 605 400];
+
+            % Create LevelsDropDownLabel
+            app.LevelsDropDownLabel = uilabel(app.UIFigure);
+            app.LevelsDropDownLabel.HorizontalAlignment = 'right';
+            app.LevelsDropDownLabel.Position = [463 413 41 15];
+            app.LevelsDropDownLabel.Text = 'Levels';
+
+            % Create LevelsDropDown
+            app.LevelsDropDown = uidropdown(app.UIFigure);
+            app.LevelsDropDown.Items = {'9-11', '9-12', '9-13'};
+            app.LevelsDropDown.ValueChangedFcn = createCallbackFcn(app, @LevelsDropDownValueChanged, true);
+            app.LevelsDropDown.Position = [519 409 100 22];
+            app.LevelsDropDown.Value = '9-11';
+
+            % Create LoadDataFileButton
+            app.LoadDataFileButton = uibutton(app.UIFigure, 'push');
+            app.LoadDataFileButton.ButtonPushedFcn = createCallbackFcn(app, @LoadDataFileButtonPushed, true);
+            app.LoadDataFileButton.Position = [16 858 100 22];
+            app.LoadDataFileButton.Text = 'Load Data File';
+
+            % Create PlotButton
+            app.PlotButton = uibutton(app.UIFigure, 'push');
+            app.PlotButton.ButtonPushedFcn = createCallbackFcn(app, @PlotButtonPushed, true);
+            app.PlotButton.Position = [532 882 106 22];
+            app.PlotButton.Text = 'Plot';
+
+            % Create LampLabel
+            app.LampLabel = uilabel(app.UIFigure);
+            app.LampLabel.HorizontalAlignment = 'right';
+            app.LampLabel.Position = [86 813 25 15];
+            app.LampLabel.Text = '';
+
+            % Create Lamp
+            app.Lamp = uilamp(app.UIFigure);
+            app.Lamp.Position = [126 813 15 15];
+            app.Lamp.Color = [0 0.451 0.7412];
+
+            % Create PerformSWTButton
+            app.PerformSWTButton = uibutton(app.UIFigure, 'push');
+            app.PerformSWTButton.ButtonPushedFcn = createCallbackFcn(app, @PerformSWTButtonPushed, true);
+            app.PerformSWTButton.Position = [323 408 100 22];
+            app.PerformSWTButton.Text = 'Perform SWT';
+
+            % Create SignalLengthSamplesEditFieldLabel
+            app.SignalLengthSamplesEditFieldLabel = uilabel(app.UIFigure);
+            app.SignalLengthSamplesEditFieldLabel.HorizontalAlignment = 'right';
+            app.SignalLengthSamplesEditFieldLabel.Position = [130 862 140 15];
+            app.SignalLengthSamplesEditFieldLabel.Text = 'Signal Length (Samples)';
+
+            % Create SignalLengthSamplesEditField
+            app.SignalLengthSamplesEditField = uieditfield(app.UIFigure, 'numeric');
+            app.SignalLengthSamplesEditField.ValueChangedFcn = createCallbackFcn(app, @SignalLengthSamplesEditFieldValueChanged, true);
+            app.SignalLengthSamplesEditField.Position = [285 858 100 22];
+            app.SignalLengthSamplesEditField.Value = 32768;
+
+            % Create DataFileLoadedLabel
+            app.DataFileLoadedLabel = uilabel(app.UIFigure);
+            app.DataFileLoadedLabel.Position = [32 813 99 15];
+            app.DataFileLoadedLabel.Text = 'Data File Loaded';
+
+            % Create CurrentSignalLengthButton
+            app.CurrentSignalLengthButton = uibutton(app.UIFigure, 'push');
+            app.CurrentSignalLengthButton.ButtonPushedFcn = createCallbackFcn(app, @CurrentSignalLengthButtonPushed, true);
+            app.CurrentSignalLengthButton.Position = [393 882 138 22];
+            app.CurrentSignalLengthButton.Text = 'Current Signal Length ';
+
+            % Create SignalStartTimesEditFieldLabel
+            app.SignalStartTimesEditFieldLabel = uilabel(app.UIFigure);
+            app.SignalStartTimesEditFieldLabel.HorizontalAlignment = 'right';
+            app.SignalStartTimesEditFieldLabel.Position = [158 886 112 15];
+            app.SignalStartTimesEditFieldLabel.Text = 'Signal Start Time(s)';
+
+            % Create SignalStartTimesEditField
+            app.SignalStartTimesEditField = uieditfield(app.UIFigure, 'numeric');
+            app.SignalStartTimesEditField.ValueChangedFcn = createCallbackFcn(app, @SignalStartTimesEditFieldValueChanged, true);
+            app.SignalStartTimesEditField.Position = [285 882 100 22];
+
+            % Create Label
+            app.Label = uilabel(app.UIFigure);
+            app.Label.HorizontalAlignment = 'right';
+            app.Label.Position = [269 412 25 15];
+            app.Label.Text = '';
+
+            % Create Lamp_2
+            app.Lamp_2 = uilamp(app.UIFigure);
+            app.Lamp_2.Position = [309 412 15 15];
+            app.Lamp_2.Color = [0 0.451 0.7412];
+
+            % Create PlotEntireLengthButton
+            app.PlotEntireLengthButton = uibutton(app.UIFigure, 'push');
+            app.PlotEntireLengthButton.ButtonPushedFcn = createCallbackFcn(app, @PlotEntireLengthButtonPushed, true);
+            app.PlotEntireLengthButton.Position = [530 855 112 22];
+            app.PlotEntireLengthButton.Text = 'Plot Entire Length';
+
+            % Create TotalSignalLengthButton
+            app.TotalSignalLengthButton = uibutton(app.UIFigure, 'push');
+            app.TotalSignalLengthButton.ButtonPushedFcn = createCallbackFcn(app, @TotalSignalLengthButtonPushed, true);
+            app.TotalSignalLengthButton.Position = [402 855 120 22];
+            app.TotalSignalLengthButton.Text = 'Total Signal Length';
+
+            % Create ResolutionEditFieldLabel
+            app.ResolutionEditFieldLabel = uilabel(app.UIFigure);
+            app.ResolutionEditFieldLabel.HorizontalAlignment = 'right';
+            app.ResolutionEditFieldLabel.Position = [13 886 64 15];
+            app.ResolutionEditFieldLabel.Text = 'Resolution';
+
+            % Create ResolutionEditField
+            app.ResolutionEditField = uieditfield(app.UIFigure, 'numeric');
+            app.ResolutionEditField.ValueChangedFcn = createCallbackFcn(app, @ResolutionEditFieldValueChanged, true);
+            app.ResolutionEditField.Position = [86 882 33 22];
+            app.ResolutionEditField.Value = 100;
+
+            % Create DefaultSignalLengthButton
+            app.DefaultSignalLengthButton = uibutton(app.UIFigure, 'push');
+            app.DefaultSignalLengthButton.ButtonPushedFcn = createCallbackFcn(app, @DefaultSignalLengthButtonPushed, true);
+            app.DefaultSignalLengthButton.Position = [397.5 827 133 22];
+            app.DefaultSignalLengthButton.Text = 'Default Signal Length';
+        end
+    end
+
+    methods (Access = public)
+
+        % Construct app
+        function app = SWT
+
+            % Create and configure components
+            createComponents(app)
+
+            % Register the app with App Designer
+            registerApp(app, app.UIFigure)
+
+            if nargout == 0
+                clear app
+            end
+        end
+
+        % Code that executes before app deletion
+        function delete(app)
+
+            % Delete UIFigure when app is deleted
+            delete(app.UIFigure)
+        end
+    end
+end
