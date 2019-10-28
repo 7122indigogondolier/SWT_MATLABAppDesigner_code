@@ -8,6 +8,11 @@
 
 **Washington and Lee University**
 
+## What is SWT ? 
+Stationary Wavelet Transform is a mathematical technique which we considered using in our non-invasive colonic motility research at Washington and Lee. We can isolate specific frequency levels by running the transform on the signals obtained from colonic motility in human test subjects (approved by the IRB) and zeroing out the levels we want to exclude. Then we run an inverse transform on the signal in order to reconstruct it into a usable form. 
+
+By isolating specific levels, we can cancel out noise in signals without having to run lengthier algorithms.
+
 ## Getting Started
  
 1. Enter value in 'Resolution' Numeric Field (top left): 
@@ -36,7 +41,7 @@
 7. Choose the levels you want to view in the 'Levels' dropdown: 
 	-Press the 'Perform SWT' button after making changes to 'Levels' dropdown to see changes 
 	-Levels value is '9-11' by default meaning its showing us 9, 10 and 11 swt levels 
-	-Maximum is '9-13' for our purposes since these levels correspond to the frequency of the CMPs we want to observe
+	-Maximum is '9-13' for our purposes since these levels correspond to the frequency of the Cyclic Motor Patterns (CMPs) we want to observe in our research
 
 Happy Signal Processing! 
 
