@@ -1,8 +1,8 @@
 # Stationary Wavelet Transform Application for Electrical Signal Analysis
 
-**Summer Engineering Research 2019 (Colon Crew v2)**
+**Summer Engineering Research 2019**
 
-**Colon Crew v2: Beth Reed, Jack Robey, Jeremy Wharton, Riwaj Shreshtha, Utkrist P. Thapa**
+**Research Crew: Beth Reed, Jack Robey, Jeremy Wharton, Riwaj Shreshtha, Utkrist P. Thapa**
 
 **Supervisor: Prof. Erickson**
 
